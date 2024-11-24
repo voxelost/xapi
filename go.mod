@@ -1,4 +1,4 @@
-module xapi
+module github.com/voxelost/xapi
 
 go 1.23.2
 
