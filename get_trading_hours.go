@@ -29,9 +29,9 @@ type TradingRecord struct {
 }
 
 type TradingHours struct {
-	Quotes  []QuotesRecord `json:"quotes"`
-	Symbol  string         `json:"symbol"`
-	Trading []TradingRecord
+	Quotes  []QuotesRecord  `json:"quotes"`
+	Symbol  string          `json:"symbol"`
+	Trading []TradingRecord `json:"trading"`
 }
 
 func (c *client) GetTradingHours(symbols []string) ([]TradingHours, error) {
