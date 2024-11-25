@@ -19,7 +19,7 @@ const (
 	TradeTypeDelete  TradeType = 4
 )
 
-type StreamingTradeRecord struct {
+type StreamingTrade struct {
 	ClosePrice    float64      `json:"close_price"`   // Close price in base currency
 	CloseTime     *int64       `json:"close_time"`    // Null if order is not closed
 	Closed        bool         `json:"closed"`        // Closed
@@ -46,7 +46,7 @@ type StreamingTradeRecord struct {
 	Volume        float64      `json:"volume"`        // Volume in lots
 }
 
-func (c *client) SubscribeTrades() (chan StreamingTradeRecord, error) {
+func (c *client) SubscribeTrades() (chan StreamingTrade, error) {
 	requestInput := map[string]interface{}{
 		"command":         "getTradeStatus",
 		"streamSessionId": c.streamSessionId,

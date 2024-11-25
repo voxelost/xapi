@@ -4,7 +4,7 @@ package xapi
 
 import "time"
 
-type StreamingCandleRecord struct {
+type StreamingCandle struct {
 	Close                 float64 `json:"close"`     // Close price in base currency
 	CandleStartTime       int64   `json:"ctm"`       // Candle start time in CET time zone (Central European Time)
 	CandleStartTimeString string  `json:"ctmString"` // String representation of the ctm field
@@ -16,7 +16,7 @@ type StreamingCandleRecord struct {
 	Volume                float64 `json:"vol"`       // Volume in lots
 }
 
-func (c *client) SubscribeCandles(symbol string) (chan StreamingCandleRecord, error) {
+func (c *client) SubscribeCandles(symbol string) (chan StreamingCandle, error) {
 	c.GetChartLastRequest(PERIOD_M1, time.Now().Add(-3*time.Hour*24), symbol)
 
 	requestInput := map[string]interface{}{

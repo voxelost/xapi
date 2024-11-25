@@ -2,11 +2,11 @@
 
 package xapi
 
-type StreamingKeepAliveRecord struct {
+type StreamingKeepAlive struct {
 	Timestamp int64 `json:"timestamp"` // Current timestamp
 }
 
-func (c *client) SubscribeKeepAlive() (chan StreamingKeepAliveRecord, error) {
+func (c *client) SubscribeKeepAlive() (chan StreamingKeepAlive, error) {
 	requestInput := map[string]interface{}{
 		"command":         "getKeepAlive",
 		"streamSessionId": c.streamSessionId,

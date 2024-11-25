@@ -2,13 +2,13 @@
 
 package xapi
 
-type SubscribeTickPricesInput struct {
+type subscribeTickPricesInput struct {
 	Symbol             string `json:"symbol"`                       // Symbol
 	MinimumArrivalTime *int64 `json:"minimalArrivalTime,omitempty"` // This field is optional and defines the minimal interval in milliseconds between any two consecutive updates. If this field is not present, or it is set to 0 (zero), ticks - if available - are sent to the client with interval equal to 200 milliseconds. In order to obtain ticks as frequently as server allows you, set it to 1 (one).
 	MaximumLevel       *int64 `json:"maximumLevel,omitempty"`       // This field is optional and specifies the maximum level of the quote that the user is interested in. If this field is not specified, the subscription is active for all levels that are managed in the system.
 }
 
-type SubscribeTickPricesRecord struct {
+type SubscribeTickPrices struct {
 	Ask         float64 `json:"ask"`         // Ask price in base currency
 	AskVolume   int     `json:"askVolume"`   // Number of available lots to buy at given price or null if not applicable
 	Bid         float64 `json:"bid"`         // Bid price in base currency
@@ -27,7 +27,7 @@ type SubscribeTickPricesRecord struct {
 // as soon as it is available in the system. The getTickPrices command can be invoked many times for the same symbol,
 // but only one subscription for a given symbol will be created. Please beware that when multiple records are available,
 // the order in which they are received is not guaranteed.
-func (c *client) SubscribeTickPrices(symbol string) (chan SubscribeTickPricesRecord, error) {
+func (c *client) SubscribeTickPrices(symbol string) (chan SubscribeTickPrices, error) {
 	requestInput := map[string]interface{}{
 		"command":         "getProfits",
 		"streamSessionId": c.streamSessionId,

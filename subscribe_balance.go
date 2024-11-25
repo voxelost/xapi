@@ -2,7 +2,7 @@
 
 package xapi
 
-type StreamingBalanceRecord struct {
+type StreamingBalance struct {
 	Balance     float64 `json:"balance"`     // balance in account currency
 	Credit      float64 `json:"credit"`      // credit in account currency
 	Equity      float64 `json:"equity"`      // sum of balance and all profits in account currency
@@ -11,7 +11,7 @@ type StreamingBalanceRecord struct {
 	MarginLevel float64 `json:"marginLevel"` // margin level percentage
 }
 
-func (c *client) SubscribeBalance() (chan StreamingBalanceRecord, error) {
+func (c *client) SubscribeBalance() (chan StreamingBalance, error) {
 	requestInput := map[string]interface{}{
 		"command":         "getBalance",
 		"streamSessionId": c.streamSessionId,

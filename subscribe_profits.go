@@ -2,14 +2,14 @@
 
 package xapi
 
-type StreamingProfitRecord struct {
+type StreamingProfit struct {
 	Order    int     `json:"order"`    // Order number
 	Order2   int     `json:"order2"`   // Transaction ID
 	Position int     `json:"position"` // Position number
 	Profit   float64 `json:"profit"`   // Profit in account currency
 }
 
-func (c *client) SubscribeProfits() (chan StreamingProfitRecord, error) {
+func (c *client) SubscribeProfits() (chan StreamingProfit, error) {
 	requestInput := map[string]interface{}{
 		"command":         "getProfits",
 		"streamSessionId": c.streamSessionId,
