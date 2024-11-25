@@ -105,7 +105,7 @@ func login(c *client) error {
 		return err
 	}
 
-	respBody := Response[any]{}
+	respBody := response[any]{}
 	err = c.conn.ReadJSON(&respBody)
 	if err != nil {
 		return err
