@@ -1,11 +1,11 @@
 package xapi
 
-type GetVersionResponse struct {
+type getVersionResponse struct {
 	Version string `json:"version"`
 }
 
 func (c *client) GetVersion() (string, error) {
-	versionResponse, err := getSync[any, GetVersionResponse](c, "getVersion", nil)
+	versionResponse, err := getSync[any, getVersionResponse](c, "getVersion", nil)
 	if err != nil {
 		return "", err
 	}
