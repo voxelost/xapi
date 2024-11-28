@@ -3,14 +3,14 @@ package xapi
 type TradeCommand int
 
 const (
-	BUY        TradeCommand = 0 // buy
-	SELL       TradeCommand = 1 // sell
-	BUY_LIMIT  TradeCommand = 2 // buy limit
-	SELL_LIMIT TradeCommand = 3 // sell limit
-	BUY_STOP   TradeCommand = 4 // buy stop
-	SELL_STOP  TradeCommand = 5 // sell stop
-	BALANCE    TradeCommand = 6 // Read only. Used in getTradesHistory for manager's deposit/withdrawal operations (profit>0 for deposit, profit<0 for withdrawal).
-	CREDIT     TradeCommand = 7 // Read only
+	BuyCommand       TradeCommand = 0 // buy
+	SellCommand      TradeCommand = 1 // sell
+	BuyLimitCommand  TradeCommand = 2 // buy limit
+	SellLimitCommand TradeCommand = 3 // sell limit
+	BuyStopCommand   TradeCommand = 4 // buy stop
+	SellStopCommand  TradeCommand = 5 // sell stop
+	BalanceCommand   TradeCommand = 6 // Read only. Used in getTradesHistory for manager's deposit/withdrawal operations (profit>0 for deposit, profit<0 for withdrawal).
+	CreditCommand    TradeCommand = 7 // Read only
 )
 
 type getProfitCalculationInput struct {

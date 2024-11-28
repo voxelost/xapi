@@ -37,9 +37,9 @@ type chartRangeRecordInput struct {
 	Info chartRangeRecordInputInfo `json:"info"`
 }
 
-type ChartRangeRateInfoRecord struct {
+type chartRangeRateInfo struct {
 	Close                 float64 `json:"close"`     // Value of close price (shift from open price)
-	CandleStartTime       int     `json:"ctm"`       // Candle start time in CET / CEST time zone (see Daylight Saving Time, DST)
+	CandleStartTime       int64   `json:"ctm"`       // Candle start time in CET / CEST time zone (see Daylight Saving Time, DST)
 	CandleStartTimeString string  `json:"ctmString"` // String representation of the 'ctm' field
 	High                  float64 `json:"high"`      // Highest value in the given period (shift from open price)
 	Low                   float64 `json:"low"`       // Lowest value in the given period (shift from open price)
@@ -47,14 +47,24 @@ type ChartRangeRateInfoRecord struct {
 	Volume                float64 `json:"vol"`       // Volume in lots
 }
 
-type ChartInfo struct {
-	Digits    int                        `json:"digits"`    // Number of decimal places
-	ExeMode   int                        `json:"exemode"`   // Execution mode
-	RateInfos []ChartRangeRateInfoRecord `json:"rateInfos"` // Array of rate info records
+type chartInfo struct {
+	Digits        int                  `json:"digits"`    // Number of decimal places
+	ExecutionMode int                  `json:"exemode"`   // Execution mode
+	RateInfos     []chartRangeRateInfo `json:"rateInfos"` // Array of rate info records
 }
 
-func (c *client) GetChartRangeRequest(period ChartInfoRecordPeriod, start, end time.Time, symbol string) (ChartInfo, error) {
-	return getSync[chartRangeRecordInput, ChartInfo](c, "getChartRangeRequest", chartRangeRecordInput{
+type ChartRangeRateInfo struct {
+	chartRangeRateInfo
+	CandleStartTime time.Time
+}
+
+type ChartInfo struct {
+	chartInfo
+	RateInfos []ChartRangeRateInfo
+}
+
+func (c *client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Time, symbol string) (ChartInfo, error) {
+	res, err := getSync[chartRangeRecordInput, chartInfo](c, "getChartRangeRequest", chartRangeRecordInput{
 		Info: chartRangeRecordInputInfo{
 			Period: period,
 			Start:  start.UnixMilli(),
@@ -62,4 +72,21 @@ func (c *client) GetChartRangeRequest(period ChartInfoRecordPeriod, start, end t
 			Symbol: symbol,
 		},
 	})
+
+	if err != nil {
+		return ChartInfo{}, err
+	}
+
+	var rateInfos []ChartRangeRateInfo
+	for _, r := range res.RateInfos {
+		rateInfos = append(rateInfos, ChartRangeRateInfo{
+			chartRangeRateInfo: r,
+			CandleStartTime:    time.UnixMilli(r.CandleStartTime),
+		})
+	}
+
+	return ChartInfo{
+		chartInfo: res,
+		RateInfos: rateInfos,
+	}, nil
 }

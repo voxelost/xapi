@@ -1,5 +1,7 @@
 package xapi
 
+import "time"
+
 type QuoteID int
 
 var (
@@ -24,7 +26,7 @@ const (
 	CFDProfitMode   ProfitMode = 6
 )
 
-type Symbol struct {
+type symbol struct {
 	Ask                float64    `json:"ask"`                // Ask price in base currency
 	Bid                float64    `json:"bid"`                // Bid price in base currency
 	CategoryName       string     `json:"categoryName"`       // Category name
@@ -33,7 +35,7 @@ type Symbol struct {
 	CurrencyPair       bool       `json:"currencyPair"`       // Indicates whether the symbol represents a currency pair
 	CurrencyProfit     string     `json:"currencyProfit"`     // The currency of calculated profit
 	Description        string     `json:"description"`        // Description
-	Expiration         *int       `json:"expiration"`         // Null if not applicable
+	Expiration         *int64     `json:"expiration"`         // Null if not applicable
 	GroupName          string     `json:"groupName"`          // Symbol group name
 	High               float64    `json:"high"`               // The highest price of the day in base currency
 	InitialMargin      int        `json:"initialMargin"`      // Initial margin for 1 lot order, used for profit/margin calculation
@@ -73,6 +75,30 @@ type Symbol struct {
 	Type               int        `json:"type"`               // Instrument class number
 }
 
+type Symbol struct {
+	symbol
+	Expiration time.Time
+	Time       time.Time
+}
+
 func (c *client) GetAllSymbols() ([]Symbol, error) {
-	return getSync[interface{}, []Symbol](c, "getAllSymbols", nil)
+	symbols, err := getSync[interface{}, []symbol](c, "getAllSymbols", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []Symbol
+	for _, s := range symbols {
+		var expiration time.Time
+		if s.Expiration != nil {
+			expiration = time.UnixMilli(*s.Expiration)
+		}
+
+		res = append(res, Symbol{
+			symbol:     s,
+			Time:       time.UnixMilli(s.Time),
+			Expiration: expiration,
+		})
+	}
+	return res, nil
 }

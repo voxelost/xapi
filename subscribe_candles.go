@@ -17,7 +17,7 @@ type StreamingCandle struct {
 }
 
 func (c *client) SubscribeCandles(symbol string) (chan StreamingCandle, error) {
-	c.GetChartLastRequest(PERIOD_M1, time.Now().Add(-3*time.Hour*24), symbol)
+	c.GetChartLast(PERIOD_M1, time.Now().Add(-3*time.Hour*24), symbol)
 
 	requestInput := map[string]interface{}{
 		"command":         "getCandles",

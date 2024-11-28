@@ -1,5 +1,7 @@
 package xapi
 
+import "time"
+
 type OrderType int
 
 var (
@@ -10,7 +12,7 @@ var (
 	OrderTypeDelete  OrderType = 4 // order delete, only used in the tradeTransaction command
 )
 
-type TradeTransactionInfo struct {
+type tradeTransactionInfo struct {
 	Command       TradeCommand `json:"cmd"`           // Operation code
 	CustomComment string       `json:"customComment"` // The value the customer may provide in order to retrieve it later.
 	Expiration    int64        `json:"expiration"`    // Pending order expiration time
@@ -24,8 +26,13 @@ type TradeTransactionInfo struct {
 	Volume        float64      `json:"volume"`        // Trade volume
 }
 
+type TradeTransactionInfo struct {
+	tradeTransactionInfo
+	Expiration time.Time
+}
+
 type tradeTransactionResponse struct {
-	TradeTransactionInfo TradeTransactionInfo `json:"tradeTransInfo"`
+	TradeTransactionInfo tradeTransactionInfo `json:"tradeTransInfo"`
 }
 
 type tradeTransactionInput struct {
@@ -41,5 +48,8 @@ func (c *client) GetTradeTransaction(orderID int) (TradeTransactionInfo, error) 
 		return TradeTransactionInfo{}, err
 	}
 
-	return tradeTransactionResponse.TradeTransactionInfo, nil
+	return TradeTransactionInfo{
+		tradeTransactionInfo: tradeTransactionResponse.TradeTransactionInfo,
+		Expiration:           time.UnixMilli(tradeTransactionResponse.TradeTransactionInfo.Expiration),
+	}, nil
 }

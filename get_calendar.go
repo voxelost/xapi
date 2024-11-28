@@ -1,5 +1,7 @@
 package xapi
 
+import "time"
+
 type MarketImpact string
 
 var (
@@ -8,7 +10,7 @@ var (
 	MarketImpactHigh   MarketImpact = "3"
 )
 
-type Calendar struct {
+type calendar struct {
 	Country  string       `json:"country"`
 	Current  string       `json:"current"`
 	Forecast string       `json:"forecast"`
@@ -19,6 +21,24 @@ type Calendar struct {
 	Title    string       `json:"title"`
 }
 
+type Calendar struct {
+	calendar
+	Time time.Time
+}
+
 func (c *client) GetCalendar() ([]Calendar, error) {
-	return getSync[any, []Calendar](c, "getCalendar", nil)
+	calendars, err := getSync[any, []calendar](c, "getCalendar", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []Calendar
+	for _, c := range calendars {
+		res = append(res, Calendar{
+			calendar: c,
+			Time:     time.Unix(c.Time, 0),
+		})
+	}
+
+	return res, nil
 }

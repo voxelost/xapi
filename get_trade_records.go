@@ -1,10 +1,12 @@
 package xapi
 
+import "time"
+
 type getTradeRecordsInput struct {
 	OrderIDs []int `json:"orders"`
 }
 
-type Trade struct {
+type trade struct {
 	ClosePrice       float64      `json:"close_price"`      // Close price in base currency
 	CloseTime        *int64       `json:"close_time"`       // Null if order is not closed
 	CloseTimeString  *string      `json:"close_timeString"` // Null if order is not closed
@@ -33,8 +35,42 @@ type Trade struct {
 	Volume           float64      `json:"volume"`           // Volume in lots
 }
 
+type Trade struct {
+	trade
+	OpenTime   time.Time
+	CloseTime  time.Time
+	Expiration time.Time
+	Timestamp  time.Time
+}
+
 func (c *client) GetTradeRecords(orderIDs []int) ([]Trade, error) {
-	return getSync[getTradeRecordsInput, []Trade](c, "getTradeRecords", getTradeRecordsInput{
+	trades, err := getSync[getTradeRecordsInput, []trade](c, "getTradeRecords", getTradeRecordsInput{
 		OrderIDs: orderIDs,
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var res []Trade
+	for _, t := range trades {
+		var closeTime time.Time
+		var expiration time.Time
+		if t.CloseTime != nil {
+			closeTime = time.UnixMilli(*t.CloseTime)
+		}
+		if t.Expiration != nil {
+			expiration = time.UnixMilli(*t.Expiration)
+		}
+
+		res = append(res, Trade{
+			trade:      t,
+			OpenTime:   time.UnixMilli(t.OpenTime),
+			CloseTime:  closeTime,
+			Expiration: expiration,
+			Timestamp:  time.UnixMilli(t.Timestamp),
+		})
+	}
+
+	return res, nil
 }

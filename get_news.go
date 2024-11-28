@@ -7,7 +7,7 @@ type getNewsInput struct {
 	End   int64 `json:"end"`
 }
 
-type NewsTopic struct {
+type newsTopic struct {
 	Body       string `json:"body"`
 	BodyLength int    `json:"bodylen"`
 	Key        string `json:"key"`
@@ -16,9 +16,27 @@ type NewsTopic struct {
 	Title      string `json:"title"`
 }
 
+type NewsTopic struct {
+	newsTopic
+	Time time.Time
+}
+
 func (c *client) GetNews(start, end time.Time) ([]NewsTopic, error) {
-	return getSync[getNewsInput, []NewsTopic](c, "getNews", getNewsInput{
+	news, err := getSync[getNewsInput, []newsTopic](c, "getNews", getNewsInput{
 		Start: start.UnixMilli(),
 		End:   end.UnixMilli(),
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var res []NewsTopic
+	for _, n := range news {
+		res = append(res, NewsTopic{
+			newsTopic: n,
+			Time:      time.UnixMilli(n.Time),
+		})
+	}
+	return res, nil
 }

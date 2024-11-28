@@ -16,7 +16,7 @@ type getTickPricesInput struct {
 	Timestamp int64               `json:"timestamp"` // The time from which the most recent tick should be looked for. Historical prices cannot be obtained using this parameter. It can only be used to verify whether a price has changed since the given time.
 }
 
-type TickRecord struct {
+type tickRecord struct {
 	Ask         float64             `json:"ask"`         // Ask price in base currency
 	AskVolume   *int                `json:"askVolume"`   // Number of available lots to buy at given price or null if not applicable
 	Bid         float64             `json:"bid"`         // Bid price in base currency
@@ -30,8 +30,13 @@ type TickRecord struct {
 	Timestamp   int64               `json:"timestamp"`   // Timestamp
 }
 
+type TickRecord struct {
+	tickRecord
+	Timestamp time.Time
+}
+
 type getTickPricesResponse struct {
-	Quotations []TickRecord `json:"quotations"`
+	Quotations []tickRecord `json:"quotations"`
 }
 
 func (c *client) GetTickPrices(level TickPriceInputLevel, symbols []string, t time.Time) ([]TickRecord, error) {
@@ -45,5 +50,13 @@ func (c *client) GetTickPrices(level TickPriceInputLevel, symbols []string, t ti
 		return nil, err
 	}
 
-	return tickRecords.Quotations, err
+	var res []TickRecord
+	for _, q := range tickRecords.Quotations {
+		res = append(res, TickRecord{
+			tickRecord: q,
+			Timestamp:  time.UnixMilli(q.Timestamp),
+		})
+	}
+
+	return res, err
 }
