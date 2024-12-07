@@ -1,5 +1,12 @@
 package xapi
 
+import (
+	"net/url"
+	"sync"
+
+	"github.com/gorilla/websocket"
+)
+
 const (
 	SYNC_PORT_REAL              = 5112
 	SYNC_PORT_DEMO              = 5124
@@ -15,18 +22,52 @@ var (
 	ClientModeReal ClientMode = "real"
 )
 
-type ApiError struct {
-	Code    string
-	Message string
+type client struct {
+	conn     *websocket.Conn
+	userID   int
+	password string
+	url      url.URL
+
+	m sync.Mutex
 }
 
-func (e ApiError) Error() string {
-	return e.Message
+func NewClient(userID int, password string, mode ClientMode) (*client, error) {
+	var rawURL string
+	if mode == ClientModeDemo {
+		rawURL = SYNC_WEBSOCKET_ADDRESS_DEMO
+	} else if mode == ClientModeReal {
+		rawURL = SYNC_WEBSOCKET_ADDRESS_REAL
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+
+	dialer := websocket.DefaultDialer
+	conn, _, err := dialer.Dial(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &client{
+		userID:   userID,
+		password: password,
+		url:      *u,
+		conn:     conn,
+	}
+
+	err = login(c)
+	if err != nil {
+		c.Close()
+		return nil, err
+	}
+
+	return c, nil
 }
 
-type loginInput struct {
-	UserId   int    `json:"userId"`
-	Password string `json:"password"`
+func (c *client) Close() {
+	c.conn.Close()
 }
 
 func getSync[T, R any](c *client, command string, data T) (R, error) {
