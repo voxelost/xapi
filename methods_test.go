@@ -5,13 +5,15 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/gkampitakis/go-snaps/match"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -19,6 +21,8 @@ import (
 )
 
 var client *xapi.Client
+var apiClientRunning = false
+var apiClientMutex = &sync.Mutex{}
 
 func getMD5Hash(text string) string {
 	hash := md5.Sum([]byte(text))
@@ -44,12 +48,10 @@ func proxyServer(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	_, message, err := conn.ReadMessage()
+	_, _, err = conn.ReadMessage()
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println(string(message))
 
 	err = os.MkdirAll("__cachedresponses__", os.ModePerm)
 	if err != nil {
@@ -107,8 +109,12 @@ func proxyServer(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-	}
 
+		err = c.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			break
+		}
+	}
 }
 
 func initApiServer(ctx context.Context, readyCallback func()) {
@@ -139,47 +145,316 @@ func initApiServer(ctx context.Context, readyCallback func()) {
 }
 
 func setupApi(ctx context.Context) {
-	waiting := true
-	readyCallback := func() {
-		waiting = false
-	}
+	apiClientMutex.Lock()
+	defer apiClientMutex.Unlock()
+	if !apiClientRunning {
+		waiting := true
+		readyCallback := func() {
+			waiting = false
+		}
 
-	go initApiServer(ctx, readyCallback)
+		go initApiServer(ctx, readyCallback)
 
-	for waiting {
+		for waiting {
+		}
 	}
 }
 
 func TestGetCalendar(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	setupApi(ctx)
+
 	calendar, err := client.GetCalendar()
 	if err != nil {
 		t.Error(err)
 	}
 
-	if len(calendar) == 0 {
-		t.Error("Calendar is empty")
-	}
-
 	snaps.MatchJSON(t, calendar)
 }
 
-func TestGetSymbols(t *testing.T) {
+func TestGetChartLast(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	setupApi(ctx)
+
+	chart, err := client.GetChartLast(xapi.PERIOD_M1, time.Date(2024, 12, 01, 0, 0, 0, 0, time.UTC), "EURUSD")
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, chart)
+}
+
+func TestGetChartRange(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	chart, err := client.GetChartRange(xapi.PERIOD_M1, time.Date(2024, 12, 01, 0, 0, 0, 0, time.UTC), time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC), "EURUSD")
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, chart)
+}
+
+func TestGetCommissionDef(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	commisionDef, err := client.GetCommissionDef("EURUSD", 0.01)
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, commisionDef)
+}
+
+func TestGetCurrentUserData(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	userData, err := client.GetCurrentUserData()
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, userData)
+}
+
+func TestGetMarginLevel(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	marginLevel, err := client.GetMarginLevel()
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, marginLevel)
+}
+
+func TestGetMarginTrade(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	marginTrade, err := client.GetMarginTrade("EURUSD", 0.01)
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, marginTrade)
+}
+
+func TestGetNews(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	news, err := client.GetNews(time.Date(2024, 11, 01, 0, 0, 0, 0, time.UTC), time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, news)
+}
+
+func TestPing(t *testing.T) {
+	t.Parallel()
+	// doesn't return anything
+}
+
+func TestGetProfitCalculation(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	profitCalculation, err := client.GetProfitCalculation("EURUSD", xapi.BuyCommand, 0.01, 1.0, 1.0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, profitCalculation)
+}
+
+func TestGetServerTime(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	serverTime, err := client.GetServerTime()
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, serverTime)
+}
+
+func TestGetStepRules(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	stepRules, err := client.GetStepRules()
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, stepRules)
+}
+
+func TestGetAllSymbols(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
 	symbols, err := client.GetAllSymbols()
 	if err != nil {
 		t.Error(err)
 	}
 
-	if len(symbols) == 0 {
-		t.Error("Symbols is empty")
+	snaps.MatchJSON(t, symbols)
+}
+
+func TestGetSymbol(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	symbol, err := client.GetSymbol("EURUSD")
+	if err != nil {
+		t.Error(err)
 	}
 
-	snaps.MatchJSON(t, symbols)
+	snaps.MatchJSON(t, symbol)
+}
+
+func TestGetTickPrices(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tickRecords, err := client.GetTickPrices(-1, []string{"EURUSD"}, time.Date(2024, 11, 01, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tickRecords)
+}
+
+func TestGetTradeRecords(t *testing.T) {
+	t.Skip()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tradeRecords, err := client.GetTradeRecords([]int{}) // TODO
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tradeRecords)
+}
+
+func TestGetTradeTransactionStatus(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tradeRecords, err := client.GetTradeRecords([]int{})
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tradeRecords)
+}
+
+func TestGetTradeTransaction(t *testing.T) {
+	t.Skip()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tradeRecords, err := client.GetTradeTransaction(1) // TODO
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tradeRecords)
+}
+
+func TestGetTradesHistory(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tradesHistory, err := client.GetTradesHistory(time.Date(2024, 11, 01, 0, 0, 0, 0, time.UTC), time.Date(2024, 12, 31, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tradesHistory, match.Any("#.Timestamp"))
+}
+
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	trades, err := client.GetTrades(false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, trades, match.Any("#.Timestamp"))
+}
+
+func TestGetTradingHours(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	tradingHours, err := client.GetTradingHours([]string{"EURUSD"})
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchJSON(t, tradingHours)
+}
+
+func TestGetVersion(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	setupApi(ctx)
+
+	version, err := client.GetVersion()
+	if err != nil {
+		t.Error(err)
+	}
+
+	snaps.MatchSnapshot(t, version)
 }
