@@ -1,6 +1,6 @@
 package xapi
 
-func login(c *client) error {
+func login(c *Client) error {
 	type loginInput struct {
 		UserId   int    `json:"userId"`
 		Password string `json:"password"`

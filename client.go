@@ -1,6 +1,7 @@
 package xapi
 
 import (
+	"errors"
 	"net/url"
 	"sync"
 
@@ -22,98 +23,78 @@ var (
 	ClientModeReal ClientMode = "real"
 )
 
-type client struct {
+type Client struct {
 	conn     *websocket.Conn
 	userID   int
 	password string
-	url      url.URL
+	url      *url.URL
 
 	m sync.Mutex
 }
 
-func NewClient(userID int, password string, mode ClientMode) (*client, error) {
-	var rawURL string
-	if mode == ClientModeDemo {
-		rawURL = SYNC_WEBSOCKET_ADDRESS_DEMO
-	} else if mode == ClientModeReal {
-		rawURL = SYNC_WEBSOCKET_ADDRESS_REAL
+type optFunc func(*Client) error
+
+func WithMode(mode ClientMode) optFunc {
+	return func(c *Client) error {
+		var rawURL string
+		if mode == ClientModeDemo {
+			rawURL = SYNC_WEBSOCKET_ADDRESS_DEMO
+		} else if mode == ClientModeReal {
+			rawURL = SYNC_WEBSOCKET_ADDRESS_REAL
+		}
+
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return err
+		}
+		c.url = u
+		return nil
+	}
+}
+
+func WithURL(rawURL string) optFunc {
+	return func(c *Client) error {
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return err
+		}
+		c.url = u
+		return nil
+	}
+}
+
+func NewClient(userID int, password string, opts ...optFunc) (*Client, error) {
+	c := &Client{
+		userID:   userID,
+		password: password,
 	}
 
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, err
+	for _, opt := range opts {
+		err := opt(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if c.url == nil {
+		return nil, errors.New("url is required")
 	}
 
 	dialer := websocket.DefaultDialer
-	conn, _, err := dialer.Dial(u.String(), nil)
+	conn, _, err := dialer.Dial(c.url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &client{
-		userID:   userID,
-		password: password,
-		url:      *u,
-		conn:     conn,
-	}
-
-	err = login(c)
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
+	c.conn = conn
 
 	return c, nil
 }
 
-func (c *client) Close() {
+func (c *Client) Login() error {
+	return login(c)
+}
+
+func (c *Client) Close() {
 	c.conn.Close()
-}
-
-func getSync[T, R any](c *client, command string, data T) (R, error) {
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	var r R
-	err := writeJSON(c, command, data)
-	if err != nil {
-		return r, err
-	}
-
-	err = getResponse(c, &r)
-	return r, err
-}
-
-func writeJSON[T any](c *client, command string, data T) error {
-	cmd := newCommand(command, data)
-	return c.conn.WriteJSON(cmd)
-}
-
-func getResponse[T any](c *client, res *T) error {
-	respBody := response[T]{}
-	err := c.conn.ReadJSON(&respBody)
-	if err != nil {
-		return err
-	}
-
-	if !respBody.Status {
-		var errorCode, errorDescription string
-		if respBody.ErrorCode != nil {
-			errorCode = *respBody.ErrorCode
-		}
-		if respBody.ErrorDescription != nil {
-			errorDescription = *respBody.ErrorDescription
-		}
-
-		return ApiError{
-			Code:    errorCode,
-			Message: errorDescription,
-		}
-	}
-
-	if respBody.ReturnData != nil {
-		*res = *respBody.ReturnData
-	}
-
-	return nil
 }

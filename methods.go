@@ -25,7 +25,7 @@ type Calendar struct {
 	Time     time.Time
 }
 
-func (c *client) GetCalendar() ([]Calendar, error) {
+func (c *Client) GetCalendar() ([]Calendar, error) {
 	calendars, err := getSync[any, []internal.Calendar](c, "getCalendar", nil)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (c *client) GetCalendar() ([]Calendar, error) {
 			Period:   c.Period,
 			Previous: c.Previous,
 			Title:    c.Title,
-			Time:     time.Unix(c.Time, 0),
+			Time:     time.UnixMilli(c.Time),
 		})
 	}
 
@@ -79,7 +79,7 @@ type ChartInfo struct {
 	RateInfos []ChartRangeRateInfo
 }
 
-func (c *client) GetChartLast(period ChartInfoRecordPeriod, start time.Time, symbol string) (ChartInfo, error) {
+func (c *Client) GetChartLast(period ChartInfoRecordPeriod, start time.Time, symbol string) (ChartInfo, error) {
 	type chartLastRecordInputInfo struct {
 		Period ChartInfoRecordPeriod `json:"period"` // Period code
 		Start  int64                 `json:"start"`  // Start of chart block (rounded down to the nearest interval and excluding)
@@ -122,7 +122,7 @@ func (c *client) GetChartLast(period ChartInfoRecordPeriod, start time.Time, sym
 	}, nil
 }
 
-func (c *client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Time, symbol string) (ChartInfo, error) {
+func (c *Client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Time, symbol string) (ChartInfo, error) {
 	type chartRangeRecordInputInfo struct {
 		Period ChartInfoRecordPeriod `json:"period"`          // Period code
 		Start  int64                 `json:"start"`           // Start of chart block (rounded down to the nearest interval and excluding)
@@ -175,7 +175,7 @@ func (c *client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Tim
 }
 
 // GetCommissionDef returns calculation of commission and rate of exchange. The value is calculated as expected value, and therefore might not be perfectly accurate.
-func (c *client) GetCommissionDef(symbol string, volume float64) (internal.CommissionDef, error) {
+func (c *Client) GetCommissionDef(symbol string, volume float64) (internal.CommissionDef, error) {
 	type commissionDefInput struct {
 		Symbol string  `json:"symbol"`
 		Volume float64 `json:"volume"`
@@ -187,15 +187,15 @@ func (c *client) GetCommissionDef(symbol string, volume float64) (internal.Commi
 	})
 }
 
-func (c *client) GetCurrentUserData() (internal.UserData, error) {
+func (c *Client) GetCurrentUserData() (internal.UserData, error) {
 	return getSync[any, internal.UserData](c, "getCurrentUserData", nil)
 }
 
-func (c *client) GetMarginLevel() (internal.MarginLevel, error) {
+func (c *Client) GetMarginLevel() (internal.MarginLevel, error) {
 	return getSync[any, internal.MarginLevel](c, "getMarginLevel", nil)
 }
 
-func (c *client) GetMarginTrade(symbol string, volume float64) (float64, error) {
+func (c *Client) GetMarginTrade(symbol string, volume float64) (float64, error) {
 	type getMarginTradeInput struct {
 		Symbol string  `json:"symbol"`
 		Volume float64 `json:"volume"`
@@ -222,7 +222,7 @@ type NewsTopic struct {
 	Time       time.Time
 }
 
-func (c *client) GetNews(start, end time.Time) ([]NewsTopic, error) {
+func (c *Client) GetNews(start, end time.Time) ([]NewsTopic, error) {
 	type getNewsInput struct {
 		Start int64 `json:"start"`
 		End   int64 `json:"end"`
@@ -251,7 +251,7 @@ func (c *client) GetNews(start, end time.Time) ([]NewsTopic, error) {
 	return res, nil
 }
 
-func (c *client) Ping() error {
+func (c *Client) Ping() error {
 	_, err := getSync[any, any](c, "ping", nil)
 	return err
 }
@@ -270,7 +270,7 @@ var (
 
 )
 
-func (c *client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, openPrice, closePrice float64) (internal.ProfitCalculation, error) {
+func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, openPrice, closePrice float64) (internal.ProfitCalculation, error) {
 	type getProfitCalculationInput struct {
 		ClosePrice float64      `json:"closePrice"`
 		Command    TradeCommand `json:"cmd"`
@@ -288,7 +288,7 @@ func (c *client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, o
 	})
 }
 
-func (c *client) GetServerTime() (time.Time, error) {
+func (c *Client) GetServerTime() (time.Time, error) {
 	type serverTime struct {
 		Time       int64  `json:"time"`
 		TimeString string `json:"timeString"`
@@ -302,7 +302,7 @@ func (c *client) GetServerTime() (time.Time, error) {
 	return time.UnixMilli(res.Time), nil
 }
 
-func (c *client) GetStepRules() ([]internal.StepRule, error) {
+func (c *Client) GetStepRules() ([]internal.StepRule, error) {
 	return getSync[any, []internal.StepRule](c, "getStepRules", nil)
 }
 
@@ -378,7 +378,7 @@ type Symbol struct {
 	Time               time.Time
 }
 
-func (c *client) GetAllSymbols() ([]Symbol, error) {
+func (c *Client) GetAllSymbols() ([]Symbol, error) {
 	symbols, err := getSync[interface{}, []internal.Symbol](c, "getAllSymbols", nil)
 	if err != nil {
 		return nil, err
@@ -442,7 +442,7 @@ func (c *client) GetAllSymbols() ([]Symbol, error) {
 	return res, nil
 }
 
-func (c *client) GetSymbol(ticker string) (internal.Symbol, error) {
+func (c *Client) GetSymbol(ticker string) (internal.Symbol, error) {
 	type getSymbolInput struct {
 		Symbol string `json:"symbol"`
 	}
@@ -474,7 +474,7 @@ type TickRecord struct {
 	Timestamp   time.Time
 }
 
-func (c *client) GetTickPrices(level TickPriceInputLevel, symbols []string, t time.Time) ([]TickRecord, error) {
+func (c *Client) GetTickPrices(level TickPriceInputLevel, symbols []string, t time.Time) ([]TickRecord, error) {
 	type getTickPricesInput struct {
 		Level     TickPriceInputLevel `json:"level"`
 		Symbols   []string            `json:"symbols"`
@@ -544,7 +544,7 @@ type Trade struct {
 	Timestamp        time.Time
 }
 
-func (c *client) GetTradeRecords(orderIDs []int) ([]Trade, error) {
+func (c *Client) GetTradeRecords(orderIDs []int) ([]Trade, error) {
 	type getTradeRecordsInput struct {
 		OrderIDs []int `json:"orders"`
 	}
@@ -610,7 +610,7 @@ var (
 	TradeStatusRejected TradeStatus = 4
 )
 
-func (c *client) GetTradeTransactionStatus(orderID int) (internal.TradeTransactionStatus, error) {
+func (c *Client) GetTradeTransactionStatus(orderID int) (internal.TradeTransactionStatus, error) {
 	type tradeTransactionStatusInput struct {
 		OrderID int `json:"order"`
 	}
@@ -644,7 +644,7 @@ type TradeTransactionInfo struct {
 	Expiration    time.Time
 }
 
-func (c *client) GetTradeTransaction(orderID int) (TradeTransactionInfo, error) {
+func (c *Client) GetTradeTransaction(orderID int) (TradeTransactionInfo, error) {
 	type tradeTransactionInput struct {
 		OrderID int `json:"order"`
 	}
@@ -676,7 +676,7 @@ func (c *client) GetTradeTransaction(orderID int) (TradeTransactionInfo, error) 
 	}, nil
 }
 
-func (c *client) GetTradesHistory(start, end time.Time) ([]Trade, error) {
+func (c *Client) GetTradesHistory(start, end time.Time) ([]Trade, error) {
 	type getTradesHistoryInput struct {
 		Start int64 `json:"start"`
 		End   int64 `json:"end"`
@@ -735,7 +735,7 @@ func (c *client) GetTradesHistory(start, end time.Time) ([]Trade, error) {
 	return trades, nil
 }
 
-func (c *client) GetTrades(openedOnly bool) ([]Trade, error) {
+func (c *Client) GetTrades(openedOnly bool) ([]Trade, error) {
 	type getTradesInput struct {
 		OpenedOnly bool `json:"openedOnly"`
 	}
@@ -813,7 +813,7 @@ type TradingHours map[string]map[DayOfWeek]struct {
 	Trading DayInfo
 }
 
-func (c *client) GetTradingHours(symbols []string) (TradingHours, error) {
+func (c *Client) GetTradingHours(symbols []string) (TradingHours, error) {
 	type getTradingHoursInput struct {
 		Symbols []string `json:"symbols"`
 	}
@@ -871,7 +871,7 @@ func (c *client) GetTradingHours(symbols []string) (TradingHours, error) {
 	return tradingHours, nil
 }
 
-func (c *client) GetVersion() (string, error) {
+func (c *Client) GetVersion() (string, error) {
 	type getVersionResponse struct {
 		Version string `json:"version"`
 	}
