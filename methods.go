@@ -174,25 +174,85 @@ func (c *Client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Tim
 	}, nil
 }
 
+type CommissionDef struct {
+	Commission     float64
+	RateOfExchange float64
+}
+
 // GetCommissionDef returns calculation of commission and rate of exchange. The value is calculated as expected value, and therefore might not be perfectly accurate.
-func (c *Client) GetCommissionDef(symbol string, volume float64) (internal.CommissionDef, error) {
+func (c *Client) GetCommissionDef(symbol string, volume float64) (CommissionDef, error) {
 	type commissionDefInput struct {
 		Symbol string  `json:"symbol"`
 		Volume float64 `json:"volume"`
 	}
 
-	return getSync[commissionDefInput, internal.CommissionDef](c, "getCommissionDef", commissionDefInput{
+	res, err := getSync[commissionDefInput, internal.CommissionDef](c, "getCommissionDef", commissionDefInput{
 		Symbol: symbol,
 		Volume: volume,
 	})
+
+	if err != nil {
+		return CommissionDef{}, err
+	}
+
+	return CommissionDef{
+		Commission:     res.Commission,
+		RateOfExchange: res.RateOfExchange,
+	}, nil
 }
 
-func (c *Client) GetCurrentUserData() (internal.UserData, error) {
-	return getSync[any, internal.UserData](c, "getCurrentUserData", nil)
+type UserData struct {
+	CompanyUnit        int
+	Currency           string
+	Group              string
+	IBAccount          bool
+	LeverageMultiplier float64
+	SpreadType         *string
+	TrailingStop       bool
 }
 
-func (c *Client) GetMarginLevel() (internal.MarginLevel, error) {
-	return getSync[any, internal.MarginLevel](c, "getMarginLevel", nil)
+func (c *Client) GetCurrentUserData() (UserData, error) {
+	res, err := getSync[any, internal.UserData](c, "getCurrentUserData", nil)
+	if err != nil {
+		return UserData{}, err
+	}
+
+	return UserData{
+		CompanyUnit:        res.CompanyUnit,
+		Currency:           res.Currency,
+		Group:              res.Group,
+		IBAccount:          res.IBAccount,
+		LeverageMultiplier: res.LeverageMultiplier,
+		SpreadType:         res.SpreadType,
+		TrailingStop:       res.TrailingStop,
+	}, nil
+}
+
+type MarginLevel struct {
+	Balance     float64
+	Credit      float64
+	Currency    string
+	Equity      float64
+	Margin      float64
+	MarginFree  float64
+	MarginLevel float64
+}
+
+func (c *Client) GetMarginLevel() (MarginLevel, error) {
+	res, err := getSync[any, internal.MarginLevel](c, "getMarginLevel", nil)
+	if err != nil {
+		return MarginLevel{}, err
+	}
+
+	return MarginLevel{
+		Balance:     res.Balance,
+		Credit:      res.Credit,
+		Currency:    res.Currency,
+		Equity:      res.Equity,
+		Margin:      res.Margin,
+		MarginFree:  res.MarginFree,
+		MarginLevel: res.MarginLevel,
+	}, nil
 }
 
 func (c *Client) GetMarginTrade(symbol string, volume float64) (float64, error) {
@@ -270,7 +330,7 @@ var (
 
 )
 
-func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, openPrice, closePrice float64) (internal.ProfitCalculation, error) {
+func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, openPrice, closePrice float64) (float64, error) {
 	type getProfitCalculationInput struct {
 		ClosePrice float64      `json:"closePrice"`
 		Command    TradeCommand `json:"cmd"`
@@ -279,13 +339,14 @@ func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, o
 		Volume     float64      `json:"volume"`
 	}
 
-	return getSync[getProfitCalculationInput, internal.ProfitCalculation](c, "getProfitCalculation", getProfitCalculationInput{
+	res, err := getSync[getProfitCalculationInput, internal.ProfitCalculation](c, "getProfitCalculation", getProfitCalculationInput{
 		Symbol:     symbol,
 		Command:    cmd,
 		Volume:     volume,
 		OpenPrice:  openPrice,
 		ClosePrice: closePrice,
 	})
+	return res.Profit, err
 }
 
 func (c *Client) GetServerTime() (time.Time, error) {
@@ -302,8 +363,41 @@ func (c *Client) GetServerTime() (time.Time, error) {
 	return time.UnixMilli(res.Time), nil
 }
 
-func (c *Client) GetStepRules() ([]internal.StepRule, error) {
-	return getSync[any, []internal.StepRule](c, "getStepRules", nil)
+type Step struct {
+	FromValue float64 `json:"fromValue"`
+	Step      float64 `json:"step"`
+}
+
+type StepRule struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Steps []Step `json:"steps"`
+}
+
+func (c *Client) GetStepRules() ([]StepRule, error) {
+	res, err := getSync[any, []internal.StepRule](c, "getStepRules", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var stepRules []StepRule
+	for _, sr := range res {
+		var steps []Step
+		for _, s := range sr.Steps {
+			steps = append(steps, Step{
+				FromValue: s.FromValue,
+				Step:      s.Step,
+			})
+		}
+
+		stepRules = append(stepRules, StepRule{
+			ID:    sr.ID,
+			Name:  sr.Name,
+			Steps: steps,
+		})
+	}
+
+	return stepRules, nil
 }
 
 type QuoteID int
@@ -442,14 +536,71 @@ func (c *Client) GetAllSymbols() ([]Symbol, error) {
 	return res, nil
 }
 
-func (c *Client) GetSymbol(ticker string) (internal.Symbol, error) {
+func (c *Client) GetSymbol(ticker string) (Symbol, error) {
 	type getSymbolInput struct {
 		Symbol string `json:"symbol"`
 	}
 
-	return getSync[getSymbolInput, internal.Symbol](c, "getSymbol", getSymbolInput{
+	res, err := getSync[getSymbolInput, internal.Symbol](c, "getSymbol", getSymbolInput{
 		Symbol: ticker,
 	})
+	if err != nil {
+		return Symbol{}, err
+	}
+
+	var expiration time.Time
+	if res.Expiration != nil {
+		expiration = time.UnixMilli(*res.Expiration)
+	}
+
+	return Symbol{
+		Ask:                res.Ask,
+		Bid:                res.Bid,
+		CategoryName:       res.CategoryName,
+		ContractSize:       res.ContractSize,
+		Currency:           res.Currency,
+		CurrencyPair:       res.CurrencyPair,
+		CurrencyProfit:     res.CurrencyProfit,
+		Description:        res.Description,
+		GroupName:          res.GroupName,
+		High:               res.High,
+		InitialMargin:      res.InitialMargin,
+		InstantMaxVolume:   res.InstantMaxVolume,
+		Leverage:           res.Leverage,
+		LongOnly:           res.LongOnly,
+		LotMax:             res.LotMax,
+		LotMin:             res.LotMin,
+		LotStep:            res.LotStep,
+		Low:                res.Low,
+		MarginHedged:       res.MarginHedged,
+		MarginHedgedStrong: res.MarginHedgedStrong,
+		MarginMaintenance:  res.MarginMaintenance,
+		MarginMode:         res.MarginMode,
+		Percentage:         res.Percentage,
+		PipsPrecision:      res.PipsPrecision,
+		Precision:          res.Precision,
+		ProfitMode:         res.ProfitMode,
+		QuoteID:            res.QuoteID,
+		ShortSelling:       res.ShortSelling,
+		SpreadRaw:          res.SpreadRaw,
+		SpreadTable:        res.SpreadTable,
+		Starting:           res.Starting,
+		StepRuleID:         res.StepRuleID,
+		StopsLevel:         res.StopsLevel,
+		SwapRollover3Days:  res.SwapRollover3Days,
+		SwapEnable:         res.SwapEnable,
+		SwapLong:           res.SwapLong,
+		SwapShort:          res.SwapShort,
+		SwapType:           res.SwapType,
+		TickSize:           res.TickSize,
+		TickValue:          res.TickValue,
+		TimeString:         res.TimeString,
+		TrailingEnabled:    res.TrailingEnabled,
+		Type:               res.Type,
+		Time:               time.UnixMilli(res.Time),
+		Expiration:         expiration,
+	}, nil
+
 }
 
 type TickPriceInputLevel int
@@ -610,14 +761,35 @@ var (
 	TradeStatusRejected TradeStatus = 4
 )
 
-func (c *Client) GetTradeTransactionStatus(orderID int) (internal.TradeTransactionStatus, error) {
+type TradeTransactionStatus struct {
+	Ask           float64
+	Bid           float64
+	CustomComment string
+	Message       *string
+	OrderID       int
+	RequestStatus int
+}
+
+func (c *Client) GetTradeTransactionStatus(orderID int) (TradeTransactionStatus, error) {
 	type tradeTransactionStatusInput struct {
 		OrderID int `json:"order"`
 	}
 
-	return getSync[tradeTransactionStatusInput, internal.TradeTransactionStatus](c, "tradeTransactionStatus", tradeTransactionStatusInput{
+	res, err := getSync[tradeTransactionStatusInput, internal.TradeTransactionStatus](c, "tradeTransactionStatus", tradeTransactionStatusInput{
 		OrderID: orderID,
 	})
+	if err != nil {
+		return TradeTransactionStatus{}, err
+	}
+
+	return TradeTransactionStatus{
+		Ask:           res.Ask,
+		Bid:           res.Bid,
+		CustomComment: res.CustomComment,
+		Message:       res.Message,
+		OrderID:       res.OrderID,
+		RequestStatus: res.RequestStatus,
+	}, nil
 }
 
 type OrderType int
