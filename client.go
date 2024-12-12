@@ -1,9 +1,11 @@
 package xapi
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -24,15 +26,24 @@ var (
 )
 
 type Client struct {
-	conn     *websocket.Conn
-	userID   int
-	password string
-	url      *url.URL
+	conn       *websocket.Conn
+	userID     int
+	password   string
+	url        *url.URL
+	cancelPing context.CancelFunc
 
 	m sync.Mutex
 }
 
 type optFunc func(*Client) error
+
+func WithUserCredentials(userID int, password string) optFunc {
+	return func(c *Client) error {
+		c.userID = userID
+		c.password = password
+		return nil
+	}
+}
 
 func WithMode(mode ClientMode) optFunc {
 	return func(c *Client) error {
@@ -63,10 +74,10 @@ func WithURL(rawURL string) optFunc {
 	}
 }
 
-func NewClient(userID int, password string, opts ...optFunc) (*Client, error) {
+func NewClient(ctx context.Context, opts ...optFunc) (*Client, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	c := &Client{
-		userID:   userID,
-		password: password,
+		cancelPing: cancel,
 	}
 
 	for _, opt := range opts {
@@ -88,6 +99,18 @@ func NewClient(userID int, password string, opts ...optFunc) (*Client, error) {
 
 	c.conn = conn
 
+	ticker := time.NewTicker(5 * time.Minute)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.Ping()
+			}
+		}
+	}()
+
 	return c, nil
 }
 
@@ -96,5 +119,6 @@ func (c *Client) Login() error {
 }
 
 func (c *Client) Close() {
+	c.cancelPing()
 	c.conn.Close()
 }
