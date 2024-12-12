@@ -122,7 +122,7 @@ func initApiServer(ctx context.Context, readyCallback func()) {
 	mockApiServer.URL = "ws://" + strings.TrimPrefix(mockApiServer.URL, "http://")
 
 	var err error
-	client, err = xapi.NewClient(-1, "", xapi.WithURL(mockApiServer.URL))
+	client, err = xapi.NewClient(context.Background(), xapi.WithUserCredentials(-1, ""), xapi.WithURL(mockApiServer.URL))
 	if err != nil {
 		panic(err)
 	}
@@ -273,7 +273,7 @@ func TestGetNews(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-	t.Parallel()
+	t.Skip()
 	// doesn't return anything
 }
 
