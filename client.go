@@ -106,7 +106,7 @@ func NewClient(ctx context.Context, opts ...optFunc) (*Client, error) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				c.Ping()
+				c.ping()
 			}
 		}
 	}()
@@ -121,4 +121,9 @@ func (c *Client) Login() error {
 func (c *Client) Close() {
 	c.cancelPing()
 	c.conn.Close()
+}
+
+func (c *Client) ping() error {
+	_, err := getSync[any, any](c, "ping", nil)
+	return err
 }

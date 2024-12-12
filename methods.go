@@ -18,13 +18,14 @@ type Calendar struct {
 	Country  string
 	Current  string
 	Forecast string
-	Impact   string
+	Impact   MarketImpact
 	Period   string
 	Previous string
 	Title    string
 	Time     time.Time
 }
 
+// GetCalendar returns an array of Calendar objects.
 func (c *Client) GetCalendar() ([]Calendar, error) {
 	calendars, err := getSync[any, []internal.Calendar](c, "getCalendar", nil)
 	if err != nil {
@@ -37,7 +38,7 @@ func (c *Client) GetCalendar() ([]Calendar, error) {
 			Country:  c.Country,
 			Current:  c.Current,
 			Forecast: c.Forecast,
-			Impact:   c.Impact,
+			Impact:   MarketImpact(c.Impact),
 			Period:   c.Period,
 			Previous: c.Previous,
 			Title:    c.Title,
@@ -51,15 +52,15 @@ func (c *Client) GetCalendar() ([]Calendar, error) {
 type ChartInfoRecordPeriod int
 
 var (
-	PERIOD_M1  ChartInfoRecordPeriod = 1
-	PERIOD_M5  ChartInfoRecordPeriod = 5
-	PERIOD_M15 ChartInfoRecordPeriod = 15
-	PERIOD_M30 ChartInfoRecordPeriod = 30
-	PERIOD_H1  ChartInfoRecordPeriod = 60
-	PERIOD_H4  ChartInfoRecordPeriod = 240
-	PERIOD_D1  ChartInfoRecordPeriod = 1440
-	PERIOD_W1  ChartInfoRecordPeriod = 10080
-	PERIOD_MN1 ChartInfoRecordPeriod = 43200
+	PERIOD_M1  ChartInfoRecordPeriod = 1     // 1 minute
+	PERIOD_M5  ChartInfoRecordPeriod = 5     // 5 minutes
+	PERIOD_M15 ChartInfoRecordPeriod = 15    // 15 minutes
+	PERIOD_M30 ChartInfoRecordPeriod = 30    // 30 minutes
+	PERIOD_H1  ChartInfoRecordPeriod = 60    // 60 minutes (1 hour)
+	PERIOD_H4  ChartInfoRecordPeriod = 240   // 240 minutes (4 hours)
+	PERIOD_D1  ChartInfoRecordPeriod = 1440  // 1440 minutes (1 day)
+	PERIOD_W1  ChartInfoRecordPeriod = 10080 // 10080 minutes (1 week)
+	PERIOD_MN1 ChartInfoRecordPeriod = 43200 // 43200 minutes (30 days)
 )
 
 type ChartRangeRateInfo struct {
@@ -79,6 +80,23 @@ type ChartInfo struct {
 	RateInfos []ChartRangeRateInfo
 }
 
+/*
+GetChartLast returns chart info, from start date to the current time. If the chosen period of CHART_LAST_INFO_RECORD is greater than 1 minute, the last candle returned by the API can change until the end of the period (the candle is being automatically updated every minute).
+
+Limitations: there are limitations in charts data availability. Detailed ranges for charts data, what can be accessed with specific period, are as follows:
+
+PERIOD_M1 --- <0-1) month, i.e. one month time
+PERIOD_M30 --- <1-7) month, six months time
+PERIOD_H4 --- <7-13) month, six months time
+PERIOD_D1 --- 13 month, and earlier on
+
+Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30, PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible for 1.5 months back from now, where 1.0 months is guaranteed.
+
+Example scenario:
+
+request charts of 5 minutes period, for 3 months time span, back from now;
+response: you are guaranteed to get 1 month of 5 minutes charts; because, 5 minutes period charts are not accessible 2 months and 3 months back from now.
+*/
 func (c *Client) GetChartLast(period ChartInfoRecordPeriod, start time.Time, symbol string) (ChartInfo, error) {
 	type chartLastRecordInputInfo struct {
 		Period ChartInfoRecordPeriod `json:"period"` // Period code
@@ -122,6 +140,18 @@ func (c *Client) GetChartLast(period ChartInfoRecordPeriod, start time.Time, sym
 	}, nil
 }
 
+/*
+GetChartRange returns chart info with data between given start and end dates.
+
+Limitations: there are limitations in charts data availability. Detailed ranges for charts data, what can be accessed with specific period, are as follows:
+
+PERIOD_M1 --- <0-1) month, i.e. one month time
+PERIOD_M30 --- <1-7) month, six months time
+PERIOD_H4 --- <7-13) month, six months time
+PERIOD_D1 --- 13 month, and earlier on
+
+Note, that specific PERIOD_ is the lowest (i.e. the most detailed) period, accessible in listed range. For instance, in months range <1-7) you can access periods: PERIOD_M30, PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1. Specific data ranges availability is guaranteed, however those ranges may be wider, e.g.: PERIOD_M1 may be accessible for 1.5 months back from now, where 1.0 months is guaranteed.
+*/
 func (c *Client) GetChartRange(period ChartInfoRecordPeriod, start, end time.Time, symbol string) (ChartInfo, error) {
 	type chartRangeRecordInputInfo struct {
 		Period ChartInfoRecordPeriod `json:"period"`          // Period code
@@ -211,6 +241,7 @@ type UserData struct {
 	TrailingStop       bool
 }
 
+// GetCurrentUserData returns information about account currency, and account leverage.
 func (c *Client) GetCurrentUserData() (UserData, error) {
 	res, err := getSync[any, internal.UserData](c, "getCurrentUserData", nil)
 	if err != nil {
@@ -238,6 +269,7 @@ type MarginLevel struct {
 	MarginLevel float64
 }
 
+// GetMarginLevel eturns various account indicators.
 func (c *Client) GetMarginLevel() (MarginLevel, error) {
 	res, err := getSync[any, internal.MarginLevel](c, "getMarginLevel", nil)
 	if err != nil {
@@ -255,6 +287,7 @@ func (c *Client) GetMarginLevel() (MarginLevel, error) {
 	}, nil
 }
 
+// GetMarginTrade returns expected margin for given instrument and volume. The value is calculated as expected margin value, and therefore might not be perfectly accurate.
 func (c *Client) GetMarginTrade(symbol string, volume float64) (float64, error) {
 	type getMarginTradeInput struct {
 		Symbol string  `json:"symbol"`
@@ -282,6 +315,7 @@ type NewsTopic struct {
 	Time       time.Time
 }
 
+// GetNews returns news from trading server which were sent within specified period of time.
 func (c *Client) GetNews(start, end time.Time) ([]NewsTopic, error) {
 	type getNewsInput struct {
 		Start int64 `json:"start"`
@@ -311,11 +345,6 @@ func (c *Client) GetNews(start, end time.Time) ([]NewsTopic, error) {
 	return res, nil
 }
 
-func (c *Client) Ping() error {
-	_, err := getSync[any, any](c, "ping", nil)
-	return err
-}
-
 type TradeCommand int
 
 var (
@@ -330,6 +359,7 @@ var (
 
 )
 
+// GetProfitCalculation calculates estimated profit for given deal data Should be used for calculator-like apps only. Profit for opened transactions should be taken from server, due to higher precision of server calculation.
 func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, openPrice, closePrice float64) (float64, error) {
 	type getProfitCalculationInput struct {
 		ClosePrice float64      `json:"closePrice"`
@@ -349,6 +379,7 @@ func (c *Client) GetProfitCalculation(symbol string, cmd TradeCommand, volume, o
 	return res.Profit, err
 }
 
+// GetServerTime returns current time on trading server.
 func (c *Client) GetServerTime() (time.Time, error) {
 	type serverTime struct {
 		Time       int64  `json:"time"`
@@ -374,6 +405,7 @@ type StepRule struct {
 	Steps []Step `json:"steps"`
 }
 
+// GetStepRules returns a list of step rules for DMAs.
 func (c *Client) GetStepRules() ([]StepRule, error) {
 	res, err := getSync[any, []internal.StepRule](c, "getStepRules", nil)
 	if err != nil {
@@ -472,6 +504,7 @@ type Symbol struct {
 	Time               time.Time
 }
 
+// GetAllSymbols returns array of all symbols available for the user.
 func (c *Client) GetAllSymbols() ([]Symbol, error) {
 	symbols, err := getSync[interface{}, []internal.Symbol](c, "getAllSymbols", nil)
 	if err != nil {
@@ -536,6 +569,7 @@ func (c *Client) GetAllSymbols() ([]Symbol, error) {
 	return res, nil
 }
 
+// GetSymbol returns information about symbol available for the user.
 func (c *Client) GetSymbol(ticker string) (Symbol, error) {
 	type getSymbolInput struct {
 		Symbol string `json:"symbol"`
@@ -600,7 +634,6 @@ func (c *Client) GetSymbol(ticker string) (Symbol, error) {
 		Time:               time.UnixMilli(res.Time),
 		Expiration:         expiration,
 	}, nil
-
 }
 
 type TickPriceInputLevel int
@@ -625,6 +658,7 @@ type TickRecord struct {
 	Timestamp   time.Time
 }
 
+// GetTickPrices returns array of current quotations for given symbols, only quotations that changed from given timestamp are returned. New timestamp obtained from output will be used as an argument of the next call of this command.
 func (c *Client) GetTickPrices(level TickPriceInputLevel, symbols []string, t time.Time) ([]TickRecord, error) {
 	type getTickPricesInput struct {
 		Level     TickPriceInputLevel `json:"level"`
@@ -695,6 +729,7 @@ type Trade struct {
 	Timestamp        time.Time
 }
 
+// GetTradeRecords returns array of trades for given order IDs.
 func (c *Client) GetTradeRecords(orderIDs []int) ([]Trade, error) {
 	type getTradeRecordsInput struct {
 		OrderIDs []int `json:"orders"`
@@ -770,6 +805,7 @@ type TradeTransactionStatus struct {
 	RequestStatus int
 }
 
+// GetTradeTransactionStatus returns current transaction status. At any time of transaction processing client might check the status of transaction on server side. In order to do that client must provide unique order ID taken from tradeTransaction invocation.
 func (c *Client) GetTradeTransactionStatus(orderID int) (TradeTransactionStatus, error) {
 	type tradeTransactionStatusInput struct {
 		OrderID int `json:"order"`
@@ -802,52 +838,60 @@ var (
 	OrderTypeDelete  OrderType = 4 // order delete, only used in the tradeTransaction command
 )
 
-type TradeTransactionInfo struct {
-	Command       int
-	CustomComment string
-	Offset        int
-	Order         int
-	Price         float64
-	StopLoss      float64
-	Symbol        string
-	TakeProfit    float64
-	Type          int
-	Volume        float64
-	Expiration    time.Time
+type TradeTransactionInput struct {
+	Command       TradeCommand // Operation code
+	CustomComment string       // The value the customer may provide in order to retrieve it later.
+	Expiration    time.Time    // Pending order expiration time
+	Offset        int          // Trailing offset
+	Order         int          // 0 or position number for closing/modifications
+	Price         float64      // Trade price
+	StopLoss      float64      // Stop loss
+	Symbol        string       // Trade symbol
+	TakeProfit    float64      // Take profit
+	Type          OrderType    // Trade transaction type
+	Volume        float64      // Trade volume
 }
 
-func (c *Client) GetTradeTransaction(orderID int) (TradeTransactionInfo, error) {
-	type tradeTransactionInput struct {
-		OrderID int `json:"order"`
-	}
+/*
+CreateTradeTransaction starts trade transaction. tradeTransaction sends main transaction information to the server.
 
-	type tradeTransactionResponse struct {
+How to verify that the trade request was accepted?
+
+The status field set to 'true' does not imply that the transaction was accepted. It only means, that the server acquired your request and began to process it. To analyse the status of the transaction (for example to verify if it was accepted or rejected) use the tradeTransactionStatus command with the order number, that came back with the response of the tradeTransaction command. You can find the example here: developers.xstore.pro/api/tutorials/opening_and_closing_trades2
+*/
+func (c *Client) CreateTradeTransaction(input TradeTransactionInput) (orderID int, err error) {
+	type tradeTransactionInput struct {
 		TradeTransactionInfo internal.TradeTransactionInfo `json:"tradeTransInfo"`
 	}
 
+	type tradeTransactionResponse struct {
+		OrderID int `json:"order"`
+	}
+
 	res, err := getSync[tradeTransactionInput, tradeTransactionResponse](c, "tradeTransaction", tradeTransactionInput{
-		OrderID: orderID,
+		TradeTransactionInfo: internal.TradeTransactionInfo{
+			Command:       int(input.Command),
+			CustomComment: input.CustomComment,
+			Offset:        input.Offset,
+			Order:         input.Order,
+			Price:         input.Price,
+			StopLoss:      input.StopLoss,
+			Symbol:        input.Symbol,
+			TakeProfit:    input.TakeProfit,
+			Type:          int(input.Type),
+			Volume:        input.Volume,
+			Expiration:    input.Expiration.UnixMilli(),
+		},
 	})
 
 	if err != nil {
-		return TradeTransactionInfo{}, err
+		return 0, err
 	}
 
-	return TradeTransactionInfo{
-		Command:       res.TradeTransactionInfo.Command,
-		CustomComment: res.TradeTransactionInfo.CustomComment,
-		Offset:        res.TradeTransactionInfo.Offset,
-		Order:         res.TradeTransactionInfo.Order,
-		Price:         res.TradeTransactionInfo.Price,
-		StopLoss:      res.TradeTransactionInfo.StopLoss,
-		Symbol:        res.TradeTransactionInfo.Symbol,
-		TakeProfit:    res.TradeTransactionInfo.TakeProfit,
-		Type:          res.TradeTransactionInfo.Type,
-		Volume:        res.TradeTransactionInfo.Volume,
-		Expiration:    time.UnixMilli(res.TradeTransactionInfo.Expiration),
-	}, nil
+	return res.OrderID, nil
 }
 
+// GetTradesHistory returns array of user's trades which were closed within specified period of time.
 func (c *Client) GetTradesHistory(start, end time.Time) ([]Trade, error) {
 	type getTradesHistoryInput struct {
 		Start int64 `json:"start"`
@@ -907,6 +951,7 @@ func (c *Client) GetTradesHistory(start, end time.Time) ([]Trade, error) {
 	return trades, nil
 }
 
+// GetTrades returns array of user's trades.
 func (c *Client) GetTrades(openedOnly bool) ([]Trade, error) {
 	type getTradesInput struct {
 		OpenedOnly bool `json:"openedOnly"`
@@ -985,6 +1030,7 @@ type TradingHours map[string]map[DayOfWeek]struct {
 	Trading DayInfo
 }
 
+// GetTradingHours returns trading hours for given symbols.
 func (c *Client) GetTradingHours(symbols []string) (TradingHours, error) {
 	type getTradingHoursInput struct {
 		Symbols []string `json:"symbols"`
@@ -1043,6 +1089,7 @@ func (c *Client) GetTradingHours(symbols []string) (TradingHours, error) {
 	return tradingHours, nil
 }
 
+// GetVersion returns the current API version.
 func (c *Client) GetVersion() (string, error) {
 	type getVersionResponse struct {
 		Version string `json:"version"`

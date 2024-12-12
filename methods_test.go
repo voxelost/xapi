@@ -390,12 +390,23 @@ func TestGetTradeTransactionStatus(t *testing.T) {
 }
 
 func TestGetTradeTransaction(t *testing.T) {
-	t.Skip()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	setupApi(ctx)
 
-	tradeRecords, err := client.GetTradeTransaction(1) // TODO
+	tradeRecords, err := client.CreateTradeTransaction(xapi.TradeTransactionInput{
+		Command:       xapi.BuyCommand,
+		CustomComment: "hello world",
+		Offset:        0,
+		Order:         0,
+		Price:         1.1,
+		StopLoss:      0.0,
+		Symbol:        "EURUSD",
+		TakeProfit:    0.0,
+		Type:          xapi.OrderTypeOpen,
+		Volume:        5.0,
+		Expiration:    time.Now().Add(time.Hour * 7 * 24),
+	})
 	if err != nil {
 		t.Error(err)
 	}
