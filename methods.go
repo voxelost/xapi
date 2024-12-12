@@ -9,9 +9,9 @@ import (
 type MarketImpact string
 
 var (
-	MarketImpactLow                MarketImpact = "1"
-	MarketImpactMediumMarketImpact MarketImpact = "2"
-	MarketImpactHigh               MarketImpact = "3"
+	MarketImpactLow    MarketImpact = "1"
+	MarketImpactMedium MarketImpact = "2"
+	MarketImpactHigh   MarketImpact = "3"
 )
 
 type Calendar struct {
