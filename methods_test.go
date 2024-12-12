@@ -31,10 +31,8 @@ func getMD5Hash(text string) string {
 }
 
 func proxyServer(w http.ResponseWriter, r *http.Request) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic(err)
-	}
+	godotenv.Load(".env")
+
 	useProxy, err := strconv.ParseBool(os.Getenv("XAPI_USE_PROXY_IN_TESTS")) // gonna remove this later
 	if err != nil {
 		useProxy = false
