@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -34,23 +35,32 @@ func proxyServer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+	useProxy, err := strconv.ParseBool(os.Getenv("XAPI_USE_PROXY_IN_TESTS")) // gonna remove this later
+	if err != nil {
+		useProxy = false
+	}
+
 	userIDS := os.Getenv("XTB_CLIENT_ID")
 	password := os.Getenv("XTB_CLIENT_SECRET")
 
 	dialer := websocket.DefaultDialer
-	conn, _, err := dialer.Dial(xapi.SYNC_WEBSOCKET_ADDRESS_DEMO, nil)
-	if err != nil {
-		panic(err)
-	}
 
-	err = conn.WriteMessage(websocket.TextMessage, []byte(`{"command":"login","arguments":{"userId":`+userIDS+`,"password":"`+password+`"}}`))
-	if err != nil {
-		panic(err)
-	}
+	var conn *websocket.Conn
+	if useProxy {
+		conn, _, err = dialer.Dial(xapi.SYNC_WEBSOCKET_ADDRESS_DEMO, nil)
+		if err != nil {
+			panic(err)
+		}
 
-	_, _, err = conn.ReadMessage()
-	if err != nil {
-		panic(err)
+		err = conn.WriteMessage(websocket.TextMessage, []byte(`{"command":"login","arguments":{"userId":`+userIDS+`,"password":"`+password+`"}}`))
+		if err != nil {
+			panic(err)
+		}
+
+		_, _, err = conn.ReadMessage()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	err = os.MkdirAll("__cachedresponses__", os.ModePerm)
@@ -95,19 +105,21 @@ func proxyServer(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		err = conn.WriteMessage(websocket.TextMessage, message)
-		if err != nil {
-			break
-		}
+		if useProxy {
+			err = conn.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				break
+			}
 
-		_, message, err = conn.ReadMessage()
-		if err != nil {
-			break
-		}
+			_, message, err = conn.ReadMessage()
+			if err != nil {
+				break
+			}
 
-		err = os.WriteFile("__cachedresponses__/"+msgHash, message, os.ModePerm)
-		if err != nil {
-			break
+			err = os.WriteFile("__cachedresponses__/"+msgHash, message, os.ModePerm)
+			if err != nil {
+				break
+			}
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, message)
